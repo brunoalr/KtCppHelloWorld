@@ -1,3 +1,4 @@
+import org.jetbrains.compose.ComposePlugin.DesktopDependencies.currentOs
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
@@ -10,6 +11,17 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.composeHotReload)
+}
+
+tasks.register<Exec>("buildNative") {
+    group = "build"
+    description = "Build native library"
+
+    inputs.dir("src/cpp")
+    outputs.dir("src/cpp/build")
+
+    commandLine("./build-native.sh")
+//    workingDir = file(".")
 }
 
 kotlin {
@@ -31,7 +43,16 @@ kotlin {
         }
     }
     
-    jvm("desktop")
+    jvm("desktop") {
+        val processResources = compilations["main"].processResourcesTaskName
+        println("BRUNO: processResources = $processResources")
+        (tasks[processResources] as ProcessResources).apply {
+            // A task that build the JNI shared library for all targets and
+            // copy each outputs into $buildDir/resources-jni
+            dependsOn("buildNative")
+            from("cpp/build/")
+        }
+    }
     
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
